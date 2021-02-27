@@ -1,7 +1,7 @@
 
 
-ldata = read.delim("lipid_data.txt", header=T, as.is=T, check.names=F)
-sdata = read.delim("sample_data.txt", header=T, as.is=T, check.names=F) 
+ldata = read.delim("./data/lipid_data.txt", header=T, as.is=T, check.names=F)
+sdata = read.delim("./data/sample_data.txt", header=T, as.is=T, check.names=F) 
 
 colnames(ldata) = gsub("\\(-H20\\)", "", colnames(ldata))
 
@@ -100,7 +100,7 @@ XLAB = paste("PC1 (", vv[1], "%)", sep="")
 YLAB = paste("PC2 (", vv[2], "%)", sep="")
 library(scales)
 
-pdf("PCAplot.pdf", height=5.5, width=5, useDingbats = FALSE)
+pdf("./output/PCAplot.pdf", height=5.5, width=5, useDingbats = FALSE)
 plot(tmp.pca$x[,1], tmp.pca$x[,2], col=alpha(ccc,0.2), pch=19,
      xlim=c(-Thres,Thres), ylim=c(-Thres,Thres), 
      xlab=XLAB, ylab=YLAB, 
@@ -118,7 +118,7 @@ tmp.ctr = sweep(tmp, 2, apply(tmp, 2, median))
 
 #install.packages("gplots")
 library(gplots)
-pdf("heatmap.pdf", height=20, width=25, useDingbats = FALSE)
+pdf("./output/heatmap.pdf", height=20, width=25, useDingbats = FALSE)
 heatmap.2(as.matrix(t(tmp.ctr)), trace="n", col=bluered(20), breaks=seq(-2,2,by=0.2), 
           distfun=function(x) as.dist(1-cor(t(x))), 
           hclustfun=function(x) hclust(x, method="average"), 
@@ -137,7 +137,7 @@ sample.class = ifelse(sdata$DM == 1, "Case", "Control")
 X = as.matrix(tmp)
 Y = sample.class
 tmp.out = plsda(X=X, Y=Y, ncomp=2)
-pdf("PLSDA_projection.pdf")
+pdf("./output/PLSDA_projection.pdf")
 plotIndiv(tmp.out, ind.names = TRUE, ellipse = TRUE, legend = TRUE)
 dev.off()
 
@@ -156,7 +156,7 @@ cp = colnames(sdata)[5:14]
 cormat = cor(sdata[,5:14], tmp, use="pairwise.complete.obs")
 
 ### Plot it in a heatmap
-pdf("cor_heatmap.pdf", height=20, width=6, useDingbats = FALSE)
+pdf("./output/cor_heatmap.pdf", height=20, width=6, useDingbats = FALSE)
 heatmap.2(as.matrix((cormat)), trace="n", main="At baseline",
           col=bluered(20), breaks=seq(-1,1,by=0.1), 
           #distfun=function(x) as.dist(1-cor(t(x))), 
