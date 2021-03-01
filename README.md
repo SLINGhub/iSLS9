@@ -12,19 +12,15 @@ In the second part, we practice how to reorganize and inspect the overall data t
 
 ## Prerequisites
 
-#### Part 1
+Download the R Project containing the scripts and data used in this workshop from this repository. Alternatively you can clone this repository in RStudio/git. Following packages are needed:
 
-Following packages will be used:
+-   Part 1: Following packages will be used: `tidyverse`, `broom` and `rgoslin`. `rgoslin`, used to convert lipid nomenclatures,is only available via github ((<https://github.com/lifs-tools/rgoslin>). See the R notebook (.Rmd) in folder Part_1 on how to install it. Please note that on Windows, you will need [rtools](https://cran.r-project.org/bin/windows/Rtools/), or on macOS [XCode](https://apps.apple.com/sg/app/xcode/id497799835?mt=12), installed in order to install this package.   
+    We suggest you to install the currently newest version of RStudio (1.4 or later), which offers a visual RMarkdown/Rnotebook editor.
 
--   `tidyverse`
--   `broom`
--   `rgoslin` is used to convert lipid names. This package `rgoslin` is only available via github ((<https://github.com/lifs-tools/rgoslin>). See the Rnotebook on how to install it. Please note that on Windows, you will need [rtools](https://cran.r-project.org/bin/windows/Rtools/), or on macOS [XCode](https://apps.apple.com/sg/app/xcode/id497799835?mt=12), installed in order to install this package.
-
-We also suggest to install the currently newest version of RStudio (1.4 or later), which offers a visual RMarkdown/Rnotebook editor.
-
-#### Part 2
-
--   TBA
+```{=html}
+<!-- -->
+```
+-   Part 2: TBA
 
 ## Authors
 
