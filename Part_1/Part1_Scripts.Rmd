@@ -1,0 +1,332 @@
+---
+title: "Lipidomics Data Analysis"
+subtitle: "iSLS9 Workshop 2021"
+author: "Bo Burla and Hyungwon Choi"
+date: '2021-02-26'
+output:
+  html_document:
+    keep_md: no
+  html_notebook: default
+  slidy_presentation: default
+  ioslides_presentation: default
+  word_document: default
+---
+
+# Prerequisites
+
+We will be using tidyverse packages for this part. The `tidyverse` package installs and loads following packages: `ggplot`, `dplyr`, `tidyr`, `readr`, `purrr`, `tibble`, `stringr`, `foracts`. We will also be using `broom` for one module. Furthermore, in one module the package `rgoslin` is used to convert lipid names. This package `rgoslin` is only available via github ((<https://github.com/lifs-tools/rgoslin>). See script below on how to install it. Please note that on Windows, you will need [rtools](https://cran.r-project.org/bin/windows/Rtools/), or on macOS [XCode](https://apps.apple.com/sg/app/xcode/id497799835?mt=12), installed in order to install this package.
+
+We also suggest to install currently newest version RStudio Version (Version 1.4 or later), which offers a visual RMarkdown/Rnotebooks editor.
+
+```{r}
+# Run once
+#if(!require(devtools)) { install.packages("devtools") }
+#install_github("lifs-tools/rgoslin")
+
+```
+
+# Setup
+
+```{r setup}
+library(here)
+library(tidyverse)
+library(broom)
+```
+
+# The Lipidomics Dataset
+
+The data used in this workshop is from \*Chew et al., 2019, JCI Insight 5(13)\* [10.1172/jci.insight.126925](https://doi.org/10.1172/jci.insight.126925). The lipdodmics LC-MS raw data used in this publication was reprocessed using MRMkit \*Teo et al., 2020, Analytical Chemistry 92, 20\* [10.1021/acs.analchem.0c03060](https://doi.org/10.1021/acs.analchem.0c03060).
+
+## Import and formatting the lipidomics dataset
+
+Read the CSV file and view it. The output is a tibble which is a data.frame with some additional functions. We see that the first 6 rows contain retention times, m/z values and QC info, which we do not need for now
+
+```{r}
+d_orig <- readr::read_csv(here("Part_1/data/quant_table_with_QC.csv"), 
+                          col_names = TRUE, trim_ws = TRUE)
+print(d_orig)
+```
+
+Let's remove these rows
+
+```{r}
+(dat1 <- d_orig %>% slice(-1:-6))
+```
+
+The lipid species names still contain detail about the measured transition (-H20) and the file names contain the file type. Let's remove these info from the column names. We also change the column types of `type` to `factor`, and `batch` to `integer`. Furthermore we obtain the sampleID from the filename of the samples, which has following structure: sampleID\#analysisNo
+
+```{r}
+d_cleaned <- dat1 %>% 
+  rename_with( ~ str_replace(.x, fixed("(-H20)"), "")) %>% 
+  mutate(filename = str_replace(
+    filename, fixed(".mzML"), ""),
+    type = as_factor(type),
+    batch = as.integer(batch))
+
+# Extract sampleID using regular expressions and move new column to front
+d_cleaned <- d_cleaned %>% 
+  mutate(SampleID = str_extract(filename, ".+(?=\\#)")) %>%
+  dplyr::select(SampleID, everything())
+```
+
+## Quality control of the dataset
+
+This dataset contains also 2 QC types: BQCs (BatchQC, pooled plasma co-extracted and measured with samples) and TQCs (technical QC, pooled extract measured in regular intervals). We now calculate the %CV (coefficient of variation) of all samples for each species. This can be done in the present format of the data, another way is to convert the table first into a 'long' format:
+
+```{r}
+
+# Reshape the table to the long format
+d_long <- d_cleaned %>% 
+  pivot_longer(names_to = "lipid", values_to = "conc", cols = -SampleID:-type) %>% 
+  arrange(lipid)
+d_long  
+
+```
+
+Calculate the CVs and plot histogram. Reshaping the table so that the CVs for BQC, TQC and samples are columns will make it easier read.
+
+```{r}
+d_sum <- d_long %>%
+  group_by(lipid, type) %>% 
+  summarise(CV = sd(conc)/mean(conc) * 100, .groups = "drop")
+d_sum
+
+d_sum_w <- d_sum %>% pivot_wider(names_from = type, values_from = CV) 
+d_sum_w
+
+summary(d_sum_w)
+
+# We only want to comapre the BQC and Samples, so we exclude TQCs
+ggplot(d_sum %>% filter(type != "TQC"), aes(x=CV, color=type)) +
+  geom_histogram(fill="white", position="dodge", bins = 40, )
+
+```
+
+## Plotting the run order vs concentration
+
+```{r}
+
+```
+
+## Converting lipid species names to the updated LIPID MAPS nomenclature and retrieving lipid annotations
+
+LIPID MAPS has recently updated the lipid species nomenclature to a more comprehensive and standardized system [Liebisch et al, Lipid Res, 2020](https://doi.org/10.1194/jlr.s120001025). There is an increasing number of publications adopting this new nomenclature. There is an online service to convert lipid names (<https://apps.lifs.isas.de/goslin/>). The software behind this tool is also available in R ([rgoslin](https://github.com/lifs-tools/rgoslin)) and Python ([pygoslin](https://github.com/lifs-tools/pygoslin)).
+
+We will be using `rgoslin` to convert the names. Please see Prerequisites on how to install `rgoslin`. First we retrieve the lipid species names, then we have still need to tweak a bit the current lipid names to a more common format so that goslin can translate them, i.e. remove the C in front of the fatty acid chain info, and convert MHCer and DHCer to Hex1Cer and Hex2Cer, respectively. We will use regular expressions for one case, see also the RStudio cheat sheet. See pre
+
+```{r message=FALSE}
+## Installing rgoslin (see also text)
+#if(!require(devtools)) { install.packages("devtools") }
+#install_github("lifs-tools/rgoslin")
+library(rgoslin)
+  
+# Get a tibble with the lipid names as rows from the original data. Include also retention times and mz values, see later.
+# Transposing data frames/tibbles need some tweak.. any better solutions?
+d_species <- tibble(species_name = names(d_orig[,-1:-3]), 
+                      RT = unlist(d_orig[1,-1:-3]), 
+                      Q1 = unlist(d_orig[2,-1:-3]),
+                      Q3 = unlist(d_orig[3,-1:-3]))
+
+# Cleaning lipid species names to a more standardized format, that can also be parsed by goslin 
+d_species <- d_species %>%  
+  mutate(
+    species_name_original = species_name,
+    species_name = str_replace(species_name, fixed("(-H20)"),""),
+    species_name = str_replace(species_name, "\\/C(?=\\d)", "/"),
+    species_name = str_replace(species_name, fixed("MHCer"), "HexCer"),
+    species_name = str_replace(species_name, fixed("DHCer"), "Hex2Cer"), 
+    species_name = str_replace(species_name, fixed("Sphd"), "Sph d"))
+  
+#d_species
+
+# get new names and a lot more information
+d_goslin <- rgoslin::parseLipidNamesWithGrammar(unique(d_species$species_name), "LipidMaps")
+#d_goslin
+
+# List species names that could not be parsed by goslin
+setdiff(d_species$species_name, d_goslin$`Original Name`)
+
+# Convert to tibble and change column names to syntactically valid names (i.e no spaces) and
+# convert selected columns to numeric..
+d_goslin_t <- d_goslin %>% 
+  as_tibble(.name_repair = "universal") %>% 
+  mutate_at(vars(Total.C, Total.OH, Total.DB, Mass), as.numeric)
+
+d_species_annot <- d_species %>%  
+  full_join(d_goslin_t, by=c("species_name"="Original.Name"))
+d_species_annot
+```
+
+## Plotting *Equivalent Carbon Number (ECN)* vs. *Retention Time*
+
+In reversed phase (RP), retention times of lipids increase with the total carbon number and decrease with the total double bond number. The Equivalent Carbon Number (ECN) is an established simple model to prediction of retention times of lipids in RP. We now first calculate to ECN based on the total C and DB number obtained from goslin. The formula is $ECN = C-k*DB$, whereby $k$ is 0.5 for the LC method used. Then we plot the ECN against the averaged retention time for each species.
+
+```{r}
+d_species_annot <- d_species_annot %>% 
+  mutate(ECN = Total.C - 0.5 * Total.DB)
+
+ggplot(d_species_annot, aes(x = ECN,  y = RT, color = Functional.Class.Abbr)) +
+  geom_point(size= 2, alpha = 0.9) +
+  scale_color_brewer(palette="Dark2") + 
+   geom_smooth(method = "lm", formula = y ~ x, se = FALSE)
+```
+
+## Performing a simple t test on all lipid species between two groups of samples
+
+In this example we want to test for lipid species that have different plasma concentration between between males and females. We will exclude subject that developed T2DM in this cohort.
+
+#### Prepare the data and get p-values and log2(fold changes) M vs F for each lipid species (method 1)
+
+```{r}
+
+# Load table with sample annotations
+d_annot <- readr::read_csv(here("Part_1/data/sample_annotations.csv"), col_names = TRUE, col_types = cols(.default = col_number()), trim_ws = TRUE)
+
+d_annot$SampleID <- as.character(d_annot$SampleID)
+
+# Select only subjects that had no T2D and re-code gender from 1/2 to M/F 
+d_annot_sel <- d_annot %>% 
+  filter(DM_incidence == 0) %>%
+  dplyr::select(SampleID, Gender) %>%
+  mutate(Gender = ifelse(Gender == 1, "M", "F"))
+
+# Add Gender to each data point (=subject/lipid) of the table. Right join means only SampleID is the 2nd (=right) table are selected 
+d_stat <- d_long %>% 
+  right_join(d_annot_sel, by = "SampleID")
+
+# Check for NAs in species/samples with NAs and drop these entries
+d_stat %>%
+  dplyr::select(SampleID, lipid, conc, Gender) %>% 
+  summarise_all(funs(sum(is.na(.))))
+
+d_stat <- d_stat %>% drop_na()
+
+# Calculate log2FC and p values from t.test contrasting M v F
+# METHOD 1 using 'classic' dplyr group_by and summarise 
+d_stat_sum <- d_stat %>% 
+  group_by(lipid) %>% 
+  summarise(
+    log2FC = log2(mean(conc[Gender == "F"])/mean(conc[Gender == "M"])),
+    p_value = t.test(x = conc[Gender == "F"], 
+                     y = conc[Gender == "M"],
+                     paired = FALSE,
+                     var.equal = FALSE)$p.value)              
+
+# Multiple testing correction (FDR)
+d_stat_sum$FDR <- p.adjust(d_stat_sum$p_value)
+
+
+hist(d_stat_sum$p_value, breaks = 30)
+```
+
+#### Now using packages `purrr` and `broom` to do the get comprehensive t.test results for all lipid species
+
+In the above script we only retrieved the *p* value from the *t* test. If we want to retrieve additional parameter such as *t* and *stderr,* we would need to run the t test function several times for each species or write a function to extract these information. The package broom offers functions to convert the results of various tests, including `t.test`, `lm`*,* `cor.test` and `lmer` to a flat tables, making it easier to be used. Together with functions from purrr, this quite useful when performing repeated tests, as for example running the same test over hundreds of different lipid species.
+
+Let us first have a look at the output of a `t.test`:
+
+```{r}
+res <- t.test(x = c(11,21,13,5,15), c(33,46,39,41,51))
+res
+```
+
+Now we use `purrr`'s `tidy` function to parse the `t.test` results into a flat table:
+
+```{r}
+broom::tidy(res)
+```
+
+To run a test over all lipid species of our dataset we first group our datasets, each group containing the data of one species. We obtain data.frame/tibble with column 'data'.
+
+```{r}
+# First we filter the datasets for the levels we want to compared (M vs F)
+d_filt <- d_stat %>% filter(Gender %in% c("M", "F"))
+    
+# Group the dataset into lipid species subsets  
+d_nest <- d_filt %>% 
+  group_nest(lipid) 
+
+d_nest
+
+```
+
+Each row in 'data' column contains a table with the data for one species
+
+```{r}
+d_nest[1,]$data
+```
+
+Using the `purrr` map function we can walk through all the sub-tables (one for each species) and run t.test and covert it to a tidy result. The results are in the column 'ttest', in the format of 1-row tables (from the output of `tidy`)
+
+```{r}
+d_ttest <- d_nest %>%
+    mutate(
+      ttest = purrr::map(data, ~ tidy(t.test(conc ~ Gender, data = .x)))
+      )
+d_ttest
+```
+
+We can now "flatten" those 1 row tables using the purrr
+
+```{r}
+
+d_ttest %>% unnest(ttest)
+
+```
+
+Here again in one block, including calculations of log2(FC) values. There are many variations to code this using purrr, glad to learn other approaches.
+
+```{r}
+
+d_ttest2 <- d_stat %>% 
+  filter(Gender %in% c("M", "F")) %>% 
+  group_nest(lipid) %>% 
+  mutate(
+    ttest = purrr::map(data, ~ tidy(t.test(conc ~ Gender, data = .x))),
+    log2FC = purrr::map_dbl(data, ~ log2(mean(.x$conc[.x$Gender == "F"]) / 
+                                         mean(.x$conc[.x$Gender == "M"])))) %>%
+  unnest(ttest)
+
+# Multiple testing correction (FDR)
+d_ttest2$FDR <- p.adjust(d_ttest2$p.value)
+
+d_ttest2
+```
+
+## Plot *P* values and FC as a Volcano plot
+
+To end this part of the workshop, we will create a volcano plot using the data from last block.
+
+```{r}
+
+library(ggrepel)  # used to 'smartly' move the labels
+
+# Set tresholds for FC and p value 
+FC_MIN <- 1.2
+FDR_MAX <- 0.01
+
+# add columns to the data.frame definin 'significantly different' species
+d_stat_sum <- d_ttest2 %>% 
+  mutate(
+    sign = case_when(
+      log2FC > log2(FC_MIN) & FDR < FDR_MAX ~ "Higher in F",
+      log2FC < -log2(FC_MIN) & FDR < FDR_MAX ~ "Lower in F",
+      TRUE ~ "n.s."),
+    label_sign =  ifelse(sign != "n.s.", lipid, "")
+  )
+
+
+
+ggplot(data=d_stat_sum, aes(x= log2FC, y= -log10(FDR), color = sign, label = label_sign)) +
+  geom_point() + 
+  geom_text_repel() +
+  scale_color_manual(values=c("red", "blue", "black")) +
+  geom_vline(xintercept=c(0, -log2(FC_MIN), log2(FC_MIN)), 
+             col="black", linetype = "dotted", size = 1) +
+  geom_hline(yintercept=-log10(FDR_MAX), col="red") +
+    theme_minimal()
+```
+
+# References
+
+-   [Cheat Sheats for Tidyverse packages](https://rstudio.com/resources/cheatsheets)

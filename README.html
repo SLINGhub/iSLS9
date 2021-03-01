@@ -194,25 +194,44 @@ summary {
 <div id="isls9-workshop-lipidomics-data-analysis" class="section level1">
 <h1>iSLS9 Workshop Lipidomics Data Analysis</h1>
 <p>Sphingolipids and T2DM Risk</p>
-<div id="summary" class="section level3">
-<h3>Summary</h3>
+<div id="summary" class="section level2">
+<h2>Summary</h2>
 <p>This repository contains datasets and R codes used for 9th International Singapore Lipid Symposium <a href="https://sling.sg/news-events/isls/">iSLS9</a> workshop held March 4th, 2021. We will be using the data published in <em>Chew et al., 2019, JCI Insight 5(13)</em> <a href="https://doi.org/10.1172/jci.insight.126925">10.1172/jci.insight.126925</a> as an example dataset for this workshop.</p>
 <p>In the first part, we will look at the structure of lipidomics datasets and discuss lipid nomenclature systems. We then look at some aspects and challenges of the analytical data processing and quality control workflow. The practical part will include reading of lipidomics data and metadata into R, parsing of the data into different formats for visualization and downstream statistical analyses (see below), converting lipid nomenclature, and creating selected quality control plots.</p>
 <p>In the second part, we practice how to reorganize and inspect the overall data trends from both sample meta data and lipidomics data via visualization and dimension reduction. We probe the correlation structure between the sphingolipids and other competing risk factors collected at baseline, and test associations between the lipids and the risk of DM incidence, using logistic regression (binary outcome) and Cox regression analysis (time-to-event analysis).</p>
 </div>
-<div id="authors" class="section level3">
-<h3>Authors</h3>
+<div id="prerequisites" class="section level2">
+<h2>Prerequisites</h2>
+<div id="part-1" class="section level4">
+<h4>Part 1</h4>
+<p>Following packages will be used:</p>
+<ul>
+<li><code>tidyverse</code></li>
+<li><code>broom</code></li>
+<li><code>rgoslin</code> is used to convert lipid names. This package <code>rgoslin</code> is only available via github ((<a href="https://github.com/lifs-tools/rgoslin" class="uri">https://github.com/lifs-tools/rgoslin</a>). See the Rnotebook on how to install it. Please note that on Windows, you will need <a href="https://cran.r-project.org/bin/windows/Rtools/">rtools</a>, or on macOS <a href="https://apps.apple.com/sg/app/xcode/id497799835?mt=12">XCode</a>, installed in order to install this package.</li>
+</ul>
+<p>We also suggest to install the currently newest version of RStudio (1.4 or later), which offers a visual RMarkdown/Rnotebook editor.</p>
+</div>
+<div id="part-2" class="section level4">
+<h4>Part 2</h4>
+<ul>
+<li>TBA</li>
+</ul>
+</div>
+</div>
+<div id="authors" class="section level2">
+<h2>Authors</h2>
 <ul>
 <li><p>Bo Burla - <a href="https://sling.sg">Singapore Lipidomics Incubator @ National University of Singapore</a></p></li>
 <li><p>Hyungwon Choi - <a href="https://www.cssblab.org">Computational &amp; Statistical Systems Biology Laboratory @ National University of Singapore</a></p></li>
 </ul>
 </div>
-<div id="license" class="section level3">
-<h3>License</h3>
+<div id="license" class="section level2">
+<h2>License</h2>
 <p>This project is licensed under the MIT License - see the <a href="LICENSE.md">LICENSE.md</a> file for details</p>
 </div>
-<div id="acknowledgments" class="section level3">
-<h3>Acknowledgments</h3>
+<div id="acknowledgments" class="section level2">
+<h2>Acknowledgments</h2>
 <ul>
 <li>Wee Siong Chew</li>
 </ul>
