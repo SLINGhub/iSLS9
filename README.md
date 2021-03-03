@@ -17,7 +17,7 @@ Download the R Project containing the scripts and data used in this workshop fro
 -   Part 1: Following packages will be used: `tidyverse`, `broom`. Furthermore, `rgoslin` is used to convert lipid nomenclatures. It is only available via github (https://github.com/lifs-tools/rgoslin). See the R notebook (.Rmd) in folder Part_1 on how to install it. Please note that on Windows, you will need an installation of [rtools](https://cran.r-project.org/bin/windows/Rtools/), and on macOS of [XCode](https://apps.apple.com/sg/app/xcode/id497799835?mt=12) in order to install this package.   
     We suggest you to use the currently newest version of RStudio (1.4 or later), which offers a visual RMarkdown/Rnotebook editor.
 
--   Part 2: Following packages will be used: `scales`, `mixOmics`. `gplots`, `qvalue`, `survival`. 
+-   Part 2: Following CRAN packages will be used: `scales`, `gplots`, `survival`. Additionally, the Bioconductor packages [`mixOmics`](https://bioconductor.org/packages/release/bioc/html/mixOmics.html) and [`qvalue`](https://bioconductor.org/packages/release/bioc/html/qvalue.html) will be used. 
 
 ## Authors
 
