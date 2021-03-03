@@ -65,8 +65,16 @@ d_cleaned <- dat1 %>%
 
 # Extract sampleID using regular expressions and move new column to front
 d_cleaned <- d_cleaned %>% 
-  mutate(SampleID = str_extract(filename, ".+(?=\\#)")) %>%
-  dplyr::select(SampleID, everything())
+  mutate(SampleID = str_extract(filename, ".+(?=\\#)")) 
+
+# Assuming that the imported data is in the original analytical sequence, we add an the "run id", which will be used later
+
+d_cleaned <- d_cleaned %>% 
+  mutate(run_id = row_number())
+
+# reorder colums, i.e. move the newly generated run_id to the front
+d_cleaned <- d_cleaned %>% 
+  dplyr::select(filename, run_id, SampleID, everything())
 ```
 
 ## Quality control of the dataset
@@ -75,9 +83,10 @@ This dataset contains also 2 QC types: BQCs (BatchQC, pooled plasma co-extracted
 
 ```{r}
 
+
 # Reshape the table to the long format
 d_long <- d_cleaned %>% 
-  pivot_longer(names_to = "lipid", values_to = "conc", cols = -SampleID:-type) %>% 
+  pivot_longer(names_to = "lipid", values_to = "conc", cols = -filename:-type) %>% 
   arrange(lipid)
 d_long  
 
@@ -104,7 +113,33 @@ ggplot(d_sum %>% filter(type != "TQC"), aes(x=CV, color=type)) +
 
 ## Plotting the run order vs concentration
 
-```{r}
+```{r fig.height=10, fig.width=10}
+
+# we will use run_id column that was generated
+
+d_plt <- d_long %>% filter(lipid %in% c("Cer d18:1/C16:0", "Cer d18:1/C18:0", "Cer d18:1/C24:0", "Cer d18:1/C24:1" ))
+
+# the layer of the QCtype points is defined by the order of the levels in the factor, so lets re-arrange them to
+# move BQC on top
+
+d_plt$type <- forcats::fct_relevel(d_plt$type, "SAMPLE", "TQC", "BQC")
+d_plt <- d_plt %>% arrange(type)
+
+ p <- ggplot(d_plt, aes(x=run_id, y=conc)) + 
+        geom_point(aes(colour = type, fill = type, shape  = type), size= 0.4, alpha=0.5, stroke = 1) +
+
+        scale_shape_manual(na.value = NA, values = c(10, 15, 16)) +
+        scale_fill_manual(na.value = NA, values= c("#aaaeaf", "#1854f9", "#db0202")) +
+        scale_colour_manual(values = c("#aaaeaf", "#1854f9", "#db0202")) +
+        facet_wrap(~lipid, ncol = 1, nrow = 4, scales="free_y") +
+        aes(ymin=0) +
+        xlab("Injection number") +
+        theme_light() 
+
+p  
+
+# ensure folder "Part_1/output" exists
+ggsave(plot = p, filename = here("Part_1/output", "run_scatter_plot.pdf") )
 
 ```
 
