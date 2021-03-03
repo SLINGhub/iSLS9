@@ -95,7 +95,8 @@ d_long
 
 Then we calculate the CVs by first grouping the data by lipid species and QC type and then calculate the CV for each group. Reshaping the table so that the CVs for BQC, TQC split to different columns will make it easier read. Finally, we plot the obtained CVs as a histogram.
 
-```{r calculate CV, max.print=20, paged.print=TRUE}
+```{r cvhisto, max.print=20, paged.print=TRUE}
+
 d_sum <- d_long %>%
   group_by(lipid, type) %>% 
   summarise(CV = sd(conc)/mean(conc) * 100, .groups = "drop")
@@ -109,7 +110,6 @@ summary(d_sum_w)
 # We only want to comapre the BQC and Samples, so we exclude TQCs
 ggplot(d_sum %>% filter(type != "TQC"), aes(x=CV, color=type)) +
 geom_histogram(fill="white", position="dodge", bins = 40)
-
 ```
 
 ## Plotting run order *vs* concentration
@@ -303,7 +303,7 @@ d_ttest <- d_nest %>%
 d_ttest
 ```
 
-We can now "flatten" those 1 row tables using the purrr
+We can now "flatten" those 1-row tables using the purrr
 
 ```{r unnest}
 d_ttest %>% unnest(ttest)
