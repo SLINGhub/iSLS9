@@ -26,7 +26,6 @@ We also suggest to install the currently newest version RStudio Version (Version
 # Run once
 #if(!require(devtools)) { install.packages("devtools") }
 #install_github("lifs-tools/rgoslin")
-
 ```
 
 # Setup
@@ -39,7 +38,7 @@ library(broom)
 
 # The Lipidomics Dataset
 
-The data used in this workshop is from [Chew *et al*., *JCI Insight,* 2019](https://doi.org/10.1172/jci.insight.126925) The lipdodmics LC-MS raw data used in this publication was reprocessed using MRMkit [Teo *et al*., *Analytical Chemistry*, 2020](https://doi.org/10.1021/acs.analchem.0c03060).
+The data used in this workshop is from [Chew *et al*, *JCI Insight,* 2019](https://doi.org/10.1172/jci.insight.126925) The lipdodmics LC-MS raw data used in this publication was reprocessed using MRMkit [Teo *et al*, *Analytical Chemistry*, 2020](https://doi.org/10.1021/acs.analchem.0c03060) [@chew2019; @Teo2020]
 
 ## Import and formatting the lipidomics dataset
 
@@ -48,7 +47,7 @@ Read the CSV file and view it. The output is a tibble, which is a data.frame wit
 ```{r read csv}
 d_orig <- readr::read_csv(here("Part_1/data/quant_table_with_QC.csv"), 
                           col_names = TRUE, trim_ws = TRUE)
-print(d_orig)
+d_orig
 ```
 
 Let's remove these rows
@@ -148,7 +147,7 @@ ggsave(plot = p,
 
 ## Converting lipid species names to the updated LIPID MAPS nomenclature and retrieving lipid annotations
 
-LIPID MAPS has recently updated the lipid species nomenclature to a more comprehensive and standardized system [Liebisch et al, Lipid Res, 2020](https://doi.org/10.1194/jlr.s120001025). There is an increasing number of publications adopting this new nomenclature. There is an online service to convert lipid names (<https://apps.lifs.isas.de/goslin/>). The software behind this tool [@Kopczynski2020] is also available in R ([rgoslin](https://github.com/lifs-tools/rgoslin)) and Python ([pygoslin](https://github.com/lifs-tools/pygoslin)).
+LIPID MAPS has recently updated the lipid species nomenclature to a more comprehensive and standardized system [@liebisch2020]. There is an increasing number of publications adopting this new nomenclature. There is an online service to convert lipid names (<https://apps.lifs.isas.de/goslin/>). The software behind this tool [@Kopczynski2020] is also available in R ([rgoslin](https://github.com/lifs-tools/rgoslin)) and Python ([pygoslin](https://github.com/lifs-tools/pygoslin)).
 
 We will be using `rgoslin` to convert the names. Please see Prerequisites on how to install `rgoslin`. First we retrieve the lipid species names, then we have still need to tweak a bit the current lipid names to a more common format so that goslin can translate them, i.e. remove the C in front of the fatty acid chain info, and convert MHCer and DHCer to Hex1Cer and Hex2Cer, respectively. We will use regular expressions for one case, see also the RStudio cheat sheet. See pre
 
@@ -197,7 +196,7 @@ d_species_annot
 
 ## Plotting *Equivalent Carbon Number (ECN)* vs. *Retention Time*
 
-In reversed phase (RP), retention times of lipids increase with the total carbon number and decrease with the total double bond number. The Equivalent Carbon Number (ECN) is an established simple model to prediction of retention times of lipids in RP. We now first calculate to ECN based on the total C and DB number obtained from goslin. The formula is $ECN = C-k*DB$, whereby $k$ is 0.5 for the LC method used. Then we plot the ECN against the averaged retention times for each species.
+In reversed phase (RP), retention times of lipids increase with the total carbon number and decrease with the total double bond number. The Equivalent Carbon Number (ECN) is an established simple model to prediction of retention times of lipids in RP [@triebl2017a] We now first calculate to ECN based on the total C and DB number obtained from goslin. The formula is $ECN = C-k*DB$, whereby $k$ is 0.5 for the LC method used. Then we plot the ECN against the averaged retention times for each species.
 
 ```{r ECNvsRT}
 d_species_annot <- d_species_annot %>% 
@@ -213,7 +212,7 @@ ggplot(d_species_annot, aes(x = ECN,  y = RT, color = Functional.Class.Abbr)) +
 
 In this example we want to test for lipid species that have different plasma concentration between between males and females. We will exclude subject that developed T2DM in this cohort.
 
-#### Prepare the data and get p-values and log2(fold changes) M vs F for each lipid species (method 1)
+#### Prepare the data and get p-values and log2FC for each lipid species (method 1)
 
 ```{r getFC_P}
 
@@ -257,7 +256,7 @@ d_stat_sum$FDR <- p.adjust(d_stat_sum$p_value)
 hist(d_stat_sum$p_value, breaks = 30)
 ```
 
-#### Now using packages `purrr` and `broom` to do the get comprehensive t.test results for all lipid species
+#### Using `purrr` and `broom` to get comprehensive t.test results for all species (method 2)
 
 In the above script we only retrieved the *p* value from the *t* test. If we want to retrieve additional parameter such as *t* and *stderr,* we would need to run the t test function several times for each species or write a function to extract these information. The package broom offers functions to convert the results of various tests, including `t.test`, `lm`*,* `cor.test` and `lmer` to a flat tables, making it easier to be used. Together with functions from purrr, this quite useful when performing repeated tests, as for example running the same test over hundreds of different lipid species.
 
@@ -288,15 +287,15 @@ d_nest
 
 ```
 
-Each row in 'data' column contains a table with the data for one species
+Each cell in 'data' column contains a table with the data for one species
 
-```{r show nested}
-d_nest[1,]$data
+```{r shownested}
+d_nest$data[3]
 ```
 
 Using the `purrr` map function we can walk through all the sub-tables (one for each species) and run t.test and covert it to a tidy result. The results are in the column 'ttest', in the format of 1-row tables (from the output of `tidy`)
 
-```{r map t.test}
+```{r mapttest}
 d_ttest <- d_nest %>%
     mutate(
       ttest = purrr::map(data, ~ tidy(t.test(conc ~ Gender, data = .x)))
@@ -307,14 +306,12 @@ d_ttest
 We can now "flatten" those 1 row tables using the purrr
 
 ```{r unnest}
-
 d_ttest %>% unnest(ttest)
-
 ```
 
 Here again in one block, including calculations of log2(FC) values. There are many variations to code this using purrr, glad to learn other approaches.
 
-```{r t.test in one block}
+```{r ttestall}
 
 d_ttest2 <- d_stat %>% 
   filter(Gender %in% c("M", "F")) %>% 
@@ -335,7 +332,7 @@ d_ttest2
 
 To end this part of the workshop, we will create a volcano plot using the data from last block.
 
-```{r}
+```{r volcano}
 
 library(ggrepel)  # used to 'smartly' move the labels
 
@@ -364,3 +361,5 @@ ggplot(data=d_stat_sum, aes(x= log2FC, y= -log10(FDR), color = sign, label = lab
   geom_hline(yintercept=-log10(FDR_MAX), col="red") +
     theme_minimal()
 ```
+
+# References
