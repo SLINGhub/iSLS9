@@ -6,17 +6,21 @@ date: '2021-02-26'
 output:
   html_document:
     keep_md: no
+    df_print: paged
   html_notebook: default
   slidy_presentation: default
   ioslides_presentation: default
   word_document: default
+bibliography: references.bib
 ---
+
+# Part 1
 
 # Prerequisites
 
 We will be using tidyverse packages for this part. The `tidyverse` package installs and loads following packages: `ggplot`, `dplyr`, `tidyr`, `readr`, `purrr`, `tibble`, `stringr`, `foracts`. We will also be using `broom` for one module. Furthermore, in one module the package `rgoslin` is used to convert lipid names. This package `rgoslin` is only available via github ((<https://github.com/lifs-tools/rgoslin>). See script below on how to install it. Please note that on Windows, you will need [rtools](https://cran.r-project.org/bin/windows/Rtools/), or on macOS [XCode](https://apps.apple.com/sg/app/xcode/id497799835?mt=12), installed in order to install this package.
 
-We also suggest to install currently newest version RStudio Version (Version 1.4 or later), which offers a visual RMarkdown/Rnotebooks editor.
+We also suggest to install the currently newest version RStudio Version (Version 1.4 or later), which offers a visual RMarkdown/R Notebooks editor.
 
 ```{r}
 # Run once
@@ -35,13 +39,13 @@ library(broom)
 
 # The Lipidomics Dataset
 
-The data used in this workshop is from \*Chew et al., 2019, JCI Insight 5(13)\* [10.1172/jci.insight.126925](https://doi.org/10.1172/jci.insight.126925). The lipdodmics LC-MS raw data used in this publication was reprocessed using MRMkit \*Teo et al., 2020, Analytical Chemistry 92, 20\* [10.1021/acs.analchem.0c03060](https://doi.org/10.1021/acs.analchem.0c03060).
+The data used in this workshop is from [Chew *et al*., *JCI Insight,* 2019](https://doi.org/10.1172/jci.insight.126925) The lipdodmics LC-MS raw data used in this publication was reprocessed using MRMkit [Teo *et al*., *Analytical Chemistry*, 2020](https://doi.org/10.1021/acs.analchem.0c03060).
 
 ## Import and formatting the lipidomics dataset
 
-Read the CSV file and view it. The output is a tibble which is a data.frame with some additional functions. We see that the first 6 rows contain retention times, m/z values and QC info, which we do not need for now
+Read the CSV file and view it. The output is a tibble, which is a data.frame with some additional functions. We see that the first 6 rows contain retention times, m/z values and QC info, which we do not need for now
 
-```{r}
+```{r read csv}
 d_orig <- readr::read_csv(here("Part_1/data/quant_table_with_QC.csv"), 
                           col_names = TRUE, trim_ws = TRUE)
 print(d_orig)
@@ -49,13 +53,13 @@ print(d_orig)
 
 Let's remove these rows
 
-```{r}
+```{r remove annot}
 (dat1 <- d_orig %>% slice(-1:-6))
 ```
 
-The lipid species names still contain detail about the measured transition (-H20) and the file names contain the file type. Let's remove these info from the column names. We also change the column types of `type` to `factor`, and `batch` to `integer`. Furthermore we obtain the sampleID from the filename of the samples, which has following structure: sampleID\#analysisNo
+The lipid species names still contain detail about the measured transition (-H2O) and the file names contain the file extention .mzML. Let's remove these info from the column names. We also change the column types of `type` to `factor`, and `batch` to `integer`. Furthermore we obtain the `sampleID` from the `filename` of the samples, which has following structure: sampleID\#analysisNo
 
-```{r}
+```{r data cleanup}
 d_cleaned <- dat1 %>% 
   rename_with( ~ str_replace(.x, fixed("(-H20)"), "")) %>% 
   mutate(filename = str_replace(
@@ -79,11 +83,9 @@ d_cleaned <- d_cleaned %>%
 
 ## Quality control of the dataset
 
-This dataset contains also 2 QC types: BQCs (BatchQC, pooled plasma co-extracted and measured with samples) and TQCs (technical QC, pooled extract measured in regular intervals). We now calculate the %CV (coefficient of variation) of all samples for each species. This can be done in the present format of the data, another way is to convert the table first into a 'long' format:
+This dataset contains also 2 QC types: BQCs (Batch QC, pooled plasma co-extracted and measured with samples) and TQCs (technical QC, pooled extract measured in regular intervals). We now would like calculate the %CV (coefficient of variation) of all samples for each lipid species. This be done in the present format of the data, another way, maybe easier approach, is to first convert the table first into a 'long' format:
 
-```{r}
-
-
+```{r convert to long, max.print=20, paged.print=TRUE}
 # Reshape the table to the long format
 d_long <- d_cleaned %>% 
   pivot_longer(names_to = "lipid", values_to = "conc", cols = -filename:-type) %>% 
@@ -92,9 +94,9 @@ d_long
 
 ```
 
-Calculate the CVs and plot histogram. Reshaping the table so that the CVs for BQC, TQC and samples are columns will make it easier read.
+Then we calculate the CVs by first grouping the data by lipid species and QC type and then calculate the CV for each group. Reshaping the table so that the CVs for BQC, TQC split to different columns will make it easier read. Finally, we plot the obtained CVs as a histogram.
 
-```{r}
+```{r calculate CV, max.print=20, paged.print=TRUE}
 d_sum <- d_long %>%
   group_by(lipid, type) %>% 
   summarise(CV = sd(conc)/mean(conc) * 100, .groups = "drop")
@@ -107,27 +109,28 @@ summary(d_sum_w)
 
 # We only want to comapre the BQC and Samples, so we exclude TQCs
 ggplot(d_sum %>% filter(type != "TQC"), aes(x=CV, color=type)) +
-  geom_histogram(fill="white", position="dodge", bins = 40, )
+geom_histogram(fill="white", position="dodge", bins = 40)
 
 ```
 
-## Plotting the run order vs concentration
+## Plotting run order *vs* concentration
 
-```{r fig.height=10, fig.width=10}
+```{r run scatterplot, fig.height=10, fig.width=10}
 
-# we will use run_id column that was generated
+# We select here the "4" ceramides for plottings
+d_plt <- d_long %>% 
+  filter(lipid %in% c("Cer d18:1/C16:0", "Cer d18:1/C18:0", "Cer d18:1/C24:0", "Cer d18:1/C24:1"))
 
-d_plt <- d_long %>% filter(lipid %in% c("Cer d18:1/C16:0", "Cer d18:1/C18:0", "Cer d18:1/C24:0", "Cer d18:1/C24:1" ))
-
-# the layer of the QCtype points is defined by the order of the levels in the factor, so lets re-arrange them to
-# move BQC on top
+# the layer of the QCtype points is defined by the order of the levels in the factor, 
+# so lets re-arrange them to move BQC on top and to ensure the scales (color, shapes) are correctly mapped
 
 d_plt$type <- forcats::fct_relevel(d_plt$type, "SAMPLE", "TQC", "BQC")
 d_plt <- d_plt %>% arrange(type)
 
+# we will use run_id column that was generated at the beginning
  p <- ggplot(d_plt, aes(x=run_id, y=conc)) + 
-        geom_point(aes(colour = type, fill = type, shape  = type), size= 0.4, alpha=0.5, stroke = 1) +
-
+        geom_point(aes(colour = type, fill = type, shape  = type),
+                   size= 0.4, alpha=0.5, stroke = 1) +
         scale_shape_manual(na.value = NA, values = c(10, 15, 16)) +
         scale_fill_manual(na.value = NA, values= c("#aaaeaf", "#1854f9", "#db0202")) +
         scale_colour_manual(values = c("#aaaeaf", "#1854f9", "#db0202")) +
@@ -135,21 +138,21 @@ d_plt <- d_plt %>% arrange(type)
         aes(ymin=0) +
         xlab("Injection number") +
         theme_light() 
+#p  
 
-p  
-
-# ensure folder "Part_1/output" exists
-ggsave(plot = p, filename = here("Part_1/output", "run_scatter_plot.pdf") )
-
+ggsave(plot = p, 
+       filename = here("Part_1/output", "run_scatter_plot.pdf"), 
+       units = "mm", 
+       width=150, height=200)
 ```
 
 ## Converting lipid species names to the updated LIPID MAPS nomenclature and retrieving lipid annotations
 
-LIPID MAPS has recently updated the lipid species nomenclature to a more comprehensive and standardized system [Liebisch et al, Lipid Res, 2020](https://doi.org/10.1194/jlr.s120001025). There is an increasing number of publications adopting this new nomenclature. There is an online service to convert lipid names (<https://apps.lifs.isas.de/goslin/>). The software behind this tool is also available in R ([rgoslin](https://github.com/lifs-tools/rgoslin)) and Python ([pygoslin](https://github.com/lifs-tools/pygoslin)).
+LIPID MAPS has recently updated the lipid species nomenclature to a more comprehensive and standardized system [Liebisch et al, Lipid Res, 2020](https://doi.org/10.1194/jlr.s120001025). There is an increasing number of publications adopting this new nomenclature. There is an online service to convert lipid names (<https://apps.lifs.isas.de/goslin/>). The software behind this tool [@Kopczynski2020] is also available in R ([rgoslin](https://github.com/lifs-tools/rgoslin)) and Python ([pygoslin](https://github.com/lifs-tools/pygoslin)).
 
 We will be using `rgoslin` to convert the names. Please see Prerequisites on how to install `rgoslin`. First we retrieve the lipid species names, then we have still need to tweak a bit the current lipid names to a more common format so that goslin can translate them, i.e. remove the C in front of the fatty acid chain info, and convert MHCer and DHCer to Hex1Cer and Hex2Cer, respectively. We will use regular expressions for one case, see also the RStudio cheat sheet. See pre
 
-```{r message=FALSE}
+```{r rgoslin, message=FALSE}
 ## Installing rgoslin (see also text)
 #if(!require(devtools)) { install.packages("devtools") }
 #install_github("lifs-tools/rgoslin")
@@ -194,9 +197,9 @@ d_species_annot
 
 ## Plotting *Equivalent Carbon Number (ECN)* vs. *Retention Time*
 
-In reversed phase (RP), retention times of lipids increase with the total carbon number and decrease with the total double bond number. The Equivalent Carbon Number (ECN) is an established simple model to prediction of retention times of lipids in RP. We now first calculate to ECN based on the total C and DB number obtained from goslin. The formula is $ECN = C-k*DB$, whereby $k$ is 0.5 for the LC method used. Then we plot the ECN against the averaged retention time for each species.
+In reversed phase (RP), retention times of lipids increase with the total carbon number and decrease with the total double bond number. The Equivalent Carbon Number (ECN) is an established simple model to prediction of retention times of lipids in RP. We now first calculate to ECN based on the total C and DB number obtained from goslin. The formula is $ECN = C-k*DB$, whereby $k$ is 0.5 for the LC method used. Then we plot the ECN against the averaged retention times for each species.
 
-```{r}
+```{r ECNvsRT}
 d_species_annot <- d_species_annot %>% 
   mutate(ECN = Total.C - 0.5 * Total.DB)
 
@@ -212,7 +215,7 @@ In this example we want to test for lipid species that have different plasma con
 
 #### Prepare the data and get p-values and log2(fold changes) M vs F for each lipid species (method 1)
 
-```{r}
+```{r getFC_P}
 
 # Load table with sample annotations
 d_annot <- readr::read_csv(here("Part_1/data/sample_annotations.csv"), col_names = TRUE, col_types = cols(.default = col_number()), trim_ws = TRUE)
@@ -260,20 +263,20 @@ In the above script we only retrieved the *p* value from the *t* test. If we wan
 
 Let us first have a look at the output of a `t.test`:
 
-```{r}
+```{r purrr}
 res <- t.test(x = c(11,21,13,5,15), c(33,46,39,41,51))
 res
 ```
 
 Now we use `purrr`'s `tidy` function to parse the `t.test` results into a flat table:
 
-```{r}
+```{r tidy}
 broom::tidy(res)
 ```
 
 To run a test over all lipid species of our dataset we first group our datasets, each group containing the data of one species. We obtain data.frame/tibble with column 'data'.
 
-```{r}
+```{r nest}
 # First we filter the datasets for the levels we want to compared (M vs F)
 d_filt <- d_stat %>% filter(Gender %in% c("M", "F"))
     
@@ -287,13 +290,13 @@ d_nest
 
 Each row in 'data' column contains a table with the data for one species
 
-```{r}
+```{r show nested}
 d_nest[1,]$data
 ```
 
 Using the `purrr` map function we can walk through all the sub-tables (one for each species) and run t.test and covert it to a tidy result. The results are in the column 'ttest', in the format of 1-row tables (from the output of `tidy`)
 
-```{r}
+```{r map t.test}
 d_ttest <- d_nest %>%
     mutate(
       ttest = purrr::map(data, ~ tidy(t.test(conc ~ Gender, data = .x)))
@@ -303,7 +306,7 @@ d_ttest
 
 We can now "flatten" those 1 row tables using the purrr
 
-```{r}
+```{r unnest}
 
 d_ttest %>% unnest(ttest)
 
@@ -311,7 +314,7 @@ d_ttest %>% unnest(ttest)
 
 Here again in one block, including calculations of log2(FC) values. There are many variations to code this using purrr, glad to learn other approaches.
 
-```{r}
+```{r t.test in one block}
 
 d_ttest2 <- d_stat %>% 
   filter(Gender %in% c("M", "F")) %>% 
@@ -361,7 +364,3 @@ ggplot(data=d_stat_sum, aes(x= log2FC, y= -log10(FDR), color = sign, label = lab
   geom_hline(yintercept=-log10(FDR_MAX), col="red") +
     theme_minimal()
 ```
-
-# References
-
--   [Cheat Sheats for Tidyverse packages](https://rstudio.com/resources/cheatsheets)
