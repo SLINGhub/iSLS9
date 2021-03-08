@@ -160,9 +160,9 @@ library(rgoslin)
 # Get a tibble with the lipid names as rows from the original data. Include also retention times and mz values, see later.
 # Transposing data frames/tibbles need some tweak.. any better solutions?
 d_species <- tibble(species_name = names(d_orig[,-1:-3]), 
-                      RT = unlist(d_orig[1,-1:-3]), 
-                      Q1 = unlist(d_orig[2,-1:-3]),
-                      Q3 = unlist(d_orig[3,-1:-3]))
+                      RT = unlist(d_orig[3,-1:-3]), 
+                      Q1 = unlist(d_orig[1,-1:-3]),
+                      Q3 = unlist(d_orig[2,-1:-3]))
 
 # Cleaning lipid species names to a more standardized format, that can also be parsed by goslin 
 d_species <- d_species %>%  
@@ -200,7 +200,7 @@ In reversed phase (RP), retention times of lipids increase with the total carbon
 
 ```{r ECNvsRT}
 d_species_annot <- d_species_annot %>% 
-  mutate(ECN = Total.C - 0.5 * Total.DB)
+  mutate(ECN = Total.C - 1 * Total.DB)
 
 ggplot(d_species_annot, aes(x = ECN,  y = RT, color = Functional.Class.Abbr)) +
   geom_point(size= 2, alpha = 0.9) +
